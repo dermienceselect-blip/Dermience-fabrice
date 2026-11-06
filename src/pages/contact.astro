@@ -1,0 +1,100 @@
+---
+import Base from '../layouts/Base.astro';
+import site from '../data/site.json';
+import categories from '../data/categories.json';
+const whatsapp = `https://wa.me/${site.telephone.replace(/\D/g, '')}?text=${encodeURIComponent('Bonjour Fabrice, je vous contacte depuis votre site.')}`;
+const telAffiche = site.telephone.replace(/^\+32(\d{3})(\d{2})(\d{2})(\d{2})$/, '+32 $1 $2 $3 $4');
+---
+<Base titre="Contact" description={`Contacter ${site.nom}, photographe : formulaire, WhatsApp, e-mail.`}>
+  <section class="conteneur contact">
+    <div class="gauche">
+      <p class="surtitre reveal">Contact</p>
+      <h1 class="titre-l reveal">Parlons de votre projet</h1>
+      <p class="texte-leger intro reveal">Mode, mariage, sport, portrait ou entreprise : écrivez-moi, je vous réponds rapidement.</p>
+      <div class="direct reveal">
+        <a href={whatsapp} target="_blank" rel="noopener" class="bouton plein">Écrire sur WhatsApp</a>
+        <a href={`mailto:${site.email}`} class="lien">{site.email}</a>
+        <a href={`tel:${site.telephone}`} class="lien">{telAffiche}</a>
+        <a href={`https://www.instagram.com/${site.instagram}/`} target="_blank" rel="noopener" class="lien">Instagram @{site.instagram}</a>
+      </div>
+    </div>
+
+    <form class="formulaire reveal" action="https://api.web3forms.com/submit" method="POST" data-email={site.email}>
+      <input type="hidden" name="access_key" value={site.web3forms_cle} />
+      <input type="hidden" name="subject" value="Nouveau message depuis le site" />
+      <input type="hidden" name="from_name" value="Site Fabrice Dermience" />
+      <input type="checkbox" name="botcheck" class="sr-only" tabindex="-1" autocomplete="off" />
+      <div class="champ"><input id="nom" name="nom" required autocomplete="name" placeholder=" " /><label for="nom">Nom</label></div>
+      <div class="champ"><input id="email" name="email" type="email" required autocomplete="email" placeholder=" " /><label for="email">E-mail</label></div>
+      <div class="champ"><input id="tel" name="telephone" type="tel" autocomplete="tel" placeholder=" " /><label for="tel">Téléphone (facultatif)</label></div>
+      <div class="champ">
+        <select id="type" name="type_de_projet" required>
+          <option value="" disabled selected></option>
+          {categories.map((c) => <option>{c}</option>)}
+          <option>Autre</option>
+        </select>
+        <label for="type">Type de projet</label>
+      </div>
+      <div class="champ"><textarea id="message" name="message" rows="5" required placeholder=" "></textarea><label for="message">Votre message</label></div>
+      <button type="submit" class="bouton plein envoyer">Envoyer le message</button>
+      <p class="statut" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+</Base>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('.formulaire')!;
+  const statut = form.querySelector('.statut')!;
+  const bouton = form.querySelector<HTMLButtonElement>('.envoyer')!;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cle = (form.querySelector('[name=access_key]') as HTMLInputElement).value;
+    if (!cle) {
+      // Formulaire pas encore relié : on ouvre la messagerie de l'utilisateur à la place
+      const d = new FormData(form);
+      const corps = `${d.get('message')}\n\n${d.get('nom')}\n${d.get('email')}\n${d.get('telephone') || ''}`;
+      location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent('Projet ' + d.get('type_de_projet'))}&body=${encodeURIComponent(corps)}`;
+      return;
+    }
+    bouton.disabled = true; bouton.textContent = 'Envoi…';
+    try {
+      const r = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+      const j = await r.json();
+      if (!j.success) throw new Error();
+      form.reset(); statut.textContent = 'Merci ! Votre message est bien parti. Je vous réponds au plus vite.';
+      statut.className = 'statut ok';
+    } catch {
+      statut.textContent = "L'envoi a échoué. Écrivez-moi directement par e-mail ou WhatsApp.";
+      statut.className = 'statut erreur';
+    } finally { bouton.disabled = false; bouton.textContent = 'Envoyer le message'; }
+  });
+</script>
+
+<style>
+  .contact { padding-top: calc(var(--header) + clamp(40px, 7vw, 110px)); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(40px, 7vw, 120px); align-items: start; }
+  .gauche .titre-l { margin: 0.6rem 0 1.5rem; }
+  .intro { font-size: 1.15rem; max-width: 36ch; }
+  .direct { display: flex; flex-direction: column; align-items: flex-start; gap: 0.9rem; margin-top: 2.5rem; }
+  .direct .bouton { margin-bottom: 0.8rem; }
+  .lien { font-size: 1.1rem; border-bottom: 1px solid var(--ligne); padding-bottom: 2px; transition: border-color 0.3s, color 0.3s; }
+  .lien:hover { color: var(--accent); border-color: var(--accent); }
+
+  .formulaire { display: flex; flex-direction: column; gap: 1.6rem; }
+  .champ { position: relative; }
+  .champ input, .champ textarea, .champ select {
+    width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--ligne); color: var(--texte);
+    font: inherit; font-size: 1.05rem; padding: 1.6rem 0 0.6rem; border-radius: 0; resize: vertical; -webkit-appearance: none; appearance: none;
+    transition: border-color 0.3s;
+  }
+  .champ select option { background: var(--fond); }
+  .champ input:focus, .champ textarea:focus, .champ select:focus { outline: none; border-color: var(--texte); }
+  .champ label { position: absolute; left: 0; top: 1.55rem; color: var(--gris); pointer-events: none; transition: transform 0.3s var(--ease), font-size 0.3s, color 0.3s; transform-origin: left; }
+  .champ input:focus + label, .champ input:not(:placeholder-shown) + label,
+  .champ textarea:focus + label, .champ textarea:not(:placeholder-shown) + label,
+  .champ select:focus + label, .champ select:valid + label { transform: translateY(-1.4rem); font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); }
+  .envoyer { align-self: flex-start; margin-top: 0.5rem; }
+  .envoyer:disabled { opacity: 0.6; }
+  .statut { margin: 0; min-height: 1.5em; font-size: 0.95rem; }
+  .statut.ok { color: #2f7a3a; } .statut.erreur { color: #b3261e; }
+  @media (max-width: 860px) { .contact { grid-template-columns: 1fr; } }
+</style>

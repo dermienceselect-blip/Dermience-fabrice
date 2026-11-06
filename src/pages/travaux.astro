@@ -1,0 +1,87 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import { projetsTries } from '../lib';
+import categories from '../data/categories.json';
+
+const projets = await projetsTries();
+// Seules les catégories qui ont au moins un projet apparaissent dans les filtres
+const utilisees = categories.filter((c) => projets.some((p) => p.data.categorie === c));
+const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+---
+<Base titre="Travaux" description="Tous les projets photo de Fabrice Dermience : mode, mariage, sport et action, portraits, corporate, publicité.">
+  <section class="conteneur entete-page">
+    <p class="surtitre reveal">Portfolio</p>
+    <h1 class="titre-l reveal">Travaux</h1>
+    <div class="filtres reveal" role="group" aria-label="Filtrer par catégorie">
+      <button class="filtre actif" data-cat="tout" aria-pressed="true">Tout <sup>{projets.length}</sup></button>
+      {utilisees.map((c) => (
+        <button class="filtre" data-cat={slug(c)} aria-pressed="false">{c} <sup>{projets.filter((p) => p.data.categorie === c).length}</sup></button>
+      ))}
+    </div>
+  </section>
+
+  <section class="conteneur grille">
+    {projets.map((p, i) => (
+      <a href={`/projets/${p.id}/`} class="carte reveal" data-cat={slug(p.data.categorie)} style={`transition-delay:${(i % 2) * 0.12}s`}>
+        <div class="carte-img">
+          <Image src={p.data.couverture} alt={p.data.titre} widths={[600, 1000, 1400]} sizes="(max-width: 760px) 100vw, 50vw" format="webp" quality={80} />
+        </div>
+        <div class="carte-texte">
+          <span class="surtitre">{p.data.categorie}</span>
+          <h2 class="titre-m">{p.data.titre}</h2>
+        </div>
+      </a>
+    ))}
+  </section>
+</Base>
+
+<script>
+  const boutons = [...document.querySelectorAll<HTMLButtonElement>('.filtre')];
+  const cartes = [...document.querySelectorAll<HTMLElement>('.carte')];
+  function filtrer(cat: string, init = false) {
+    boutons.forEach((b) => { const on = b.dataset.cat === cat; b.classList.toggle('actif', on); b.setAttribute('aria-pressed', String(on)); });
+    cartes.forEach((c) => {
+      const montrer = cat === 'tout' || c.dataset.cat === cat;
+      c.classList.toggle('cache', !montrer);
+      if (montrer && !init) c.classList.add('visible');
+    });
+    // Décalage en quinconce recalculé sur les cartes visibles
+    cartes.filter((c) => !c.classList.contains('cache')).forEach((c, k) => c.classList.toggle('decale', k % 2 === 1));
+    history.replaceState(null, '', cat === 'tout' ? location.pathname : '#' + cat);
+  }
+  boutons.forEach((b) => b.addEventListener('click', () => filtrer(b.dataset.cat!)));
+  const h = location.hash.slice(1);
+  filtrer(h && boutons.some((b) => b.dataset.cat === h) ? h : 'tout', true);
+</script>
+
+<style>
+  .entete-page { padding-top: calc(var(--header) + clamp(48px, 8vw, 120px)); padding-bottom: clamp(40px, 6vw, 80px); }
+  .entete-page .titre-l { margin-top: 0.6rem; }
+  .filtres { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 2.5rem; }
+  .filtre {
+    padding: 0.7em 1.2em; border: 1px solid var(--ligne); border-radius: 999px;
+    font-size: 0.78rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+    transition: border-color 0.3s, background 0.3s, color 0.3s;
+  }
+  .filtre sup { font-size: 0.7em; color: var(--gris); margin-left: 2px; }
+  .filtre:hover { border-color: var(--texte); }
+  .filtre.actif { background: var(--texte); color: var(--fond); border-color: var(--texte); }
+  .filtre.actif sup { color: var(--fond); }
+
+  .grille { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(24px, 4vw, 64px) clamp(16px, 3vw, 48px); }
+  .carte.decale { margin-top: clamp(0px, 10vw, 160px); }
+  .carte.cache { display: none; }
+  .carte-img { overflow: hidden; aspect-ratio: 4 / 5; background: var(--fond-2); }
+  .carte-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease), filter 0.6s; filter: brightness(0.92); }
+  .carte:hover .carte-img img { transform: scale(1.05); filter: brightness(1); }
+  .carte-texte { padding-top: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .carte .titre-m { transition: color 0.3s; }
+  .carte:hover .titre-m { color: var(--accent); }
+
+  @media (max-width: 760px) {
+    .grille { grid-template-columns: 1fr; }
+    .carte.decale { margin-top: 0; }
+    .carte-img { aspect-ratio: 4 / 4.6; }
+  }
+</style>

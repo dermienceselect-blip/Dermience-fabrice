@@ -1,0 +1,236 @@
+---
+import { Image, getImage } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import { projetsTries } from '../../lib';
+
+export async function getStaticPaths() {
+  const projets = await projetsTries();
+  return projets.map((p, i) => ({ params: { slug: p.id }, props: { projet: p, suivant: projets[(i + 1) % projets.length] } }));
+}
+const { projet, suivant } = Astro.props;
+const { titre, categorie, description, photos } = projet.data;
+
+// Version grand format pour l'agrandissement (lightbox)
+const grandes = await Promise.all(photos.map((p) => getImage({ src: p.image, width: Math.min(p.image.width, 2400), format: 'webp', quality: 85 })));
+const suivantImg = await getImage({ src: suivant.data.couverture, widths: [800, 1600], format: 'webp', quality: 75 });
+---
+<Base titre={titre} description={description || `${titre}, projet ${categorie.toLowerCase()} de Fabrice Dermience.`}>
+  <section class="conteneur entete-projet">
+    <a href={`/travaux/#${categorie.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`} class="surtitre">{categorie}</a>
+    <h1 class="titre-l">{titre}</h1>
+    {description && <p class="intro-texte">{description}</p>}
+  </section>
+
+  <section class="defile" aria-label={`Photos du projet ${titre}`}>
+    <div class="piste" tabindex="0">
+      {photos.map((p, i) => (
+        <figure class="photo">
+          <button class="photo-btn" data-i={i} aria-label={`Agrandir la photo ${i + 1}`}>
+            <Image src={p.image} alt={p.legende || `${titre}, photo ${i + 1}`} widths={[600, 1000, 1600]}
+                   sizes="(max-width: 760px) 90vw, 60vw" format="webp" quality={82} loading={i < 2 ? 'eager' : 'lazy'} draggable="false" />
+            <span class="zoom" aria-hidden="true">+</span>
+          </button>
+          {p.legende && <figcaption>{p.legende}</figcaption>}
+        </figure>
+      ))}
+    </div>
+    <div class="conteneur commandes">
+      <span class="compteur"><span class="num">01</span> / {String(photos.length).padStart(2, '0')}</span>
+      <span class="progres" aria-hidden="true"><span></span></span>
+      <span class="astuce">Glissez ou utilisez les flèches</span>
+      <div class="fleches">
+        <button class="prec" aria-label="Photo précédente">←</button>
+        <button class="suiv" aria-label="Photo suivante">→</button>
+      </div>
+    </div>
+  </section>
+
+  <a href={`/projets/${suivant.id}/`} class="suivant">
+    <img src={suivantImg.src} srcset={suivantImg.srcSet.attribute} sizes="100vw" alt="" loading="lazy" />
+    <span class="suivant-voile"></span>
+    <span class="suivant-texte conteneur">
+      <span class="surtitre">Projet suivant</span>
+      <span class="titre-l">{suivant.data.titre}</span>
+    </span>
+  </a>
+
+  <dialog class="lightbox" aria-label="Photo agrandie">
+    <img class="lb-img" alt="" />
+    <p class="lb-legende"></p>
+    <div class="lb-barre">
+      <span class="lb-compteur"></span>
+      <button class="lb-fermer" aria-label="Fermer">Fermer ✕</button>
+    </div>
+    <button class="lb-prec" aria-label="Photo précédente">←</button>
+    <button class="lb-suiv" aria-label="Photo suivante">→</button>
+  </dialog>
+
+  <script is:inline type="application/json" id="lb-data" set:html={JSON.stringify(photos.map((p, i) => ({ src: grandes[i].src, alt: p.legende || `${titre}, photo ${i + 1}`, legende: p.legende || '' })))}></script>
+</Base>
+
+<script>
+  // Défilement horizontal : flèches, molette, glisser à la souris, barre de progression
+  const piste = document.querySelector<HTMLElement>('.piste')!;
+  const items = [...piste.querySelectorAll<HTMLElement>('.photo')];
+  const num = document.querySelector('.commandes .num')!;
+  const barre = document.querySelector<HTMLElement>('.progres span')!;
+  const actuel = () => {
+    const marge = parseFloat(getComputedStyle(piste).paddingLeft);
+    let k = 0, best = Infinity;
+    items.forEach((it, j) => { const d = Math.abs(it.offsetLeft - piste.offsetLeft - marge - piste.scrollLeft); if (d < best) { best = d; k = j; } });
+    return k;
+  };
+  const aller = (k: number) => {
+    k = Math.max(0, Math.min(items.length - 1, k));
+    const marge = parseFloat(getComputedStyle(piste).paddingLeft);
+    piste.scrollTo({ left: items[k].offsetLeft - piste.offsetLeft - marge, behavior: 'smooth' });
+  };
+  const maj = () => {
+    const max = piste.scrollWidth - piste.clientWidth;
+    const fin = max > 0 && piste.scrollLeft >= max - 4;
+    const k = fin ? items.length - 1 : actuel();
+    num.textContent = String(k + 1).padStart(2, '0');
+    barre.style.transform = `scaleX(${max > 0 ? Math.max(0.04, piste.scrollLeft / max) : 1})`;
+  };
+  piste.addEventListener('scroll', maj, { passive: true }); maj();
+  document.querySelector('.commandes .prec')!.addEventListener('click', () => aller(actuel() - 1));
+  document.querySelector('.commandes .suiv')!.addEventListener('click', () => aller(actuel() + 1));
+  piste.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') { e.preventDefault(); aller(actuel() + 1); } if (e.key === 'ArrowLeft') { e.preventDefault(); aller(actuel() - 1); } });
+  // La molette verticale fait défiler les photos tant qu'il en reste
+  let tMolette: number | undefined;
+  piste.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const max = piste.scrollWidth - piste.clientWidth;
+    if ((e.deltaY > 0 && piste.scrollLeft < max - 1) || (e.deltaY < 0 && piste.scrollLeft > 1)) {
+      e.preventDefault();
+      piste.classList.add('molette'); clearTimeout(tMolette);
+      tMolette = window.setTimeout(() => piste.classList.remove('molette'), 250);
+      piste.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+  // Glisser à la souris
+  let depart: number | null = null, gauche = 0, bouge = false;
+  piste.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    depart = e.clientX; gauche = piste.scrollLeft; bouge = false;
+  });
+  addEventListener('pointermove', (e) => {
+    if (depart === null) return;
+    const dx = e.clientX - depart; if (Math.abs(dx) > 5 && !bouge) { bouge = true; piste.classList.add('saisi'); }
+    piste.scrollLeft = gauche - dx;
+  });
+  addEventListener('pointerup', () => { depart = null; piste.classList.remove('saisi'); });
+  piste.addEventListener('click', (e) => { if (bouge) { e.preventDefault(); e.stopPropagation(); bouge = false; } }, true);
+
+  type Photo = { src: string; alt: string; legende: string };
+  const data: Photo[] = JSON.parse(document.getElementById('lb-data')!.textContent!);
+  const lb = document.querySelector<HTMLDialogElement>('.lightbox')!;
+  const img = lb.querySelector<HTMLImageElement>('.lb-img')!;
+  const legende = lb.querySelector('.lb-legende')!;
+  const compteur = lb.querySelector('.lb-compteur')!;
+  let i = 0;
+
+  function afficher(n: number) {
+    i = (n + data.length) % data.length;
+    img.classList.remove('charge');
+    img.onload = () => img.classList.add('charge');
+    img.src = data[i].src; img.alt = data[i].alt;
+    if (img.complete) img.classList.add('charge');
+    legende.textContent = data[i].legende;
+    compteur.textContent = `${String(i + 1).padStart(2, '0')} / ${String(data.length).padStart(2, '0')}`;
+    // Précharge la suivante
+    new Image().src = data[(i + 1) % data.length].src;
+  }
+  document.querySelectorAll<HTMLButtonElement>('.photo-btn').forEach((b) =>
+    b.addEventListener('click', () => { afficher(Number(b.dataset.i)); lb.showModal(); document.body.style.overflow = 'hidden'; }));
+  lb.addEventListener('close', () => (document.body.style.overflow = ''));
+  lb.querySelector('.lb-fermer')!.addEventListener('click', () => lb.close());
+  lb.querySelector('.lb-prec')!.addEventListener('click', () => afficher(i - 1));
+  lb.querySelector('.lb-suiv')!.addEventListener('click', () => afficher(i + 1));
+  lb.addEventListener('click', (e) => { if (e.target === lb) lb.close(); });
+  lb.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') afficher(i + 1); if (e.key === 'ArrowLeft') afficher(i - 1); });
+  let x0: number | null = null;
+  lb.addEventListener('touchstart', (e) => (x0 = e.touches[0].clientX), { passive: true });
+  lb.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) afficher(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  });
+
+</script>
+
+<style>
+  .entete-projet { padding-top: calc(var(--header) + clamp(28px, 4vw, 64px)); padding-bottom: clamp(24px, 3vw, 40px); display: flex; flex-direction: column; gap: 1rem; animation: texte-entree 1s var(--ease) both; }
+  @keyframes texte-entree { from { opacity: 0; transform: translateY(30px); } }
+  .entete-projet .titre-l { text-wrap: balance; }
+  .intro-texte { margin: 0.2rem 0 0; max-width: 46ch; font-size: clamp(1.1rem, 1.8vw, 1.5rem); font-weight: 300; line-height: 1.4; color: var(--texte-2); }
+
+  /* Défilement horizontal des photos */
+  .defile { animation: piste-entree 1.2s var(--ease) 0.2s both; }
+  @keyframes piste-entree { from { opacity: 0; transform: translateX(60px); } }
+  .piste {
+    display: flex; gap: clamp(12px, 1.6vw, 24px); overflow-x: auto; overscroll-behavior-x: contain;
+    padding-inline: max(var(--marge), calc((100vw - 1600px) / 2 + var(--marge)));
+    scroll-snap-type: x proximity; scroll-padding-inline: var(--marge);
+    scrollbar-width: none; cursor: grab; outline-offset: -2px;
+  }
+  .piste::-webkit-scrollbar { display: none; }
+  .piste.saisi { cursor: grabbing; scroll-snap-type: none; }
+  .piste.molette { scroll-snap-type: none; }
+  .piste.saisi .photo-btn { pointer-events: none; }
+  .photo { margin: 0; flex: 0 0 auto; scroll-snap-align: start; }
+  .photo-btn img { height: clamp(300px, calc(100vh - 450px), 760px); height: clamp(300px, calc(100svh - 450px), 760px); width: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
+  .commandes { display: flex; align-items: center; gap: clamp(16px, 2.5vw, 32px); padding-top: 1.6rem; font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; }
+  .compteur { font-variant-numeric: tabular-nums; min-width: 5em; }
+  .progres { flex: 1; max-width: 360px; height: 1px; background: var(--ligne); position: relative; overflow: hidden; }
+  .progres span { position: absolute; inset: 0; background: var(--texte); transform-origin: left; transform: scaleX(0.04); transition: transform 0.2s linear; }
+  .astuce { color: var(--gris); letter-spacing: 0.1em; }
+  .commandes .fleches { display: flex; gap: 6px; margin-left: auto; }
+  .commandes .fleches button { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--ligne); font-size: 1.1rem; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+  .commandes .fleches button:hover { background: var(--texte); color: var(--fond); border-color: var(--texte); }
+  .photo-btn { display: block; position: relative; width: 100%; overflow: hidden; cursor: zoom-in; background: var(--fond-2); }
+  .photo-btn img { transition: transform 1.2s var(--ease), filter 0.6s; }
+  .photo-btn:hover img { transform: scale(1.04); filter: brightness(0.8); }
+  .zoom {
+    position: absolute; top: 50%; left: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+    display: grid; place-items: center; background: rgba(242,239,233,0.92); color: var(--fond); font-size: 1.8rem; font-weight: 200;
+    transform: scale(0.6); opacity: 0; transition: transform 0.5s var(--ease), opacity 0.4s;
+  }
+  .photo-btn:hover .zoom, .photo-btn:focus-visible .zoom { transform: scale(1); opacity: 1; }
+  figcaption { margin-top: 0.8rem; font-size: 0.85rem; font-weight: 300; color: var(--gris); }
+
+  .suivant { position: relative; display: block; height: 70vh; min-height: 380px; overflow: hidden; margin-top: clamp(100px, 14vw, 220px); }
+  .suivant img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.6s var(--ease); }
+  .suivant:hover img { transform: scale(1.06); }
+  .suivant .surtitre { color: rgba(255,255,255,0.85); }
+  .suivant-voile { position: absolute; inset: 0; background: rgba(0,0,0,0.55); transition: background 0.6s; }
+  .suivant:hover .suivant-voile { background: rgba(0,0,0,0.4); }
+  .suivant-texte { color: #fff; position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+
+  .lightbox { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(251,250,248,0.98); color: var(--texte); }
+  .lightbox[open] { display: flex; align-items: center; justify-content: center; animation: lb-entree 0.4s var(--ease); }
+  .lightbox::backdrop { background: transparent; }
+  @keyframes lb-entree { from { opacity: 0; } }
+  .lb-img { max-width: calc(100vw - 180px); max-height: calc(100dvh - 140px); width: auto; height: auto; object-fit: contain; opacity: 0; transform: scale(0.97); transition: opacity 0.5s var(--ease), transform 0.5s var(--ease); }
+  .lb-img.charge { opacity: 1; transform: none; }
+  .lb-legende { position: absolute; bottom: 24px; left: 0; right: 0; text-align: center; margin: 0; font-size: 0.85rem; font-weight: 300; color: var(--gris); }
+  .lb-barre { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 20px var(--marge); font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+  .lb-fermer { letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.78rem; padding: 10px 0; }
+  .lb-fermer:hover { color: var(--accent); }
+  .lb-prec, .lb-suiv { position: absolute; top: 50%; margin-top: -28px; width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--ligne); background: var(--fond); font-size: 1.2rem; transition: background 0.3s, color 0.3s; }
+  .lb-prec { left: 24px; } .lb-suiv { right: 24px; }
+  .lb-prec:hover, .lb-suiv:hover { background: var(--texte); color: var(--fond); }
+
+  @media (max-width: 760px) {
+    .photo-btn img { height: auto; width: auto; max-height: 58vh; max-width: 84vw; }
+    .piste { scroll-snap-type: x mandatory; align-items: center; }
+    .astuce, .commandes .fleches { display: none; }
+    .progres { max-width: none; }
+    .zoom { display: none; }
+    .lb-img { max-width: 100vw; max-height: calc(100dvh - 160px); }
+    .lb-prec, .lb-suiv { top: auto; bottom: 20px; margin-top: 0; width: 48px; height: 48px; }
+    .lb-prec { left: var(--marge); } .lb-suiv { right: var(--marge); }
+    .lb-legende { bottom: 84px; }
+  }
+</style>

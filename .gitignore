@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-apercu/
+.astro/
+apercu-page.html
+apercu-files.json
+.DS_Store

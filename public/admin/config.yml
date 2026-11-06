@@ -1,0 +1,79 @@
+# Espace admin de Fabrice (Sveltia CMS). Adresse : /admin
+backend:
+  name: github
+  repo: dermienceselect-blip/Dermience-fabrice
+  branch: main
+  # Connexion : bouton « Se connecter avec un jeton d'accès » (voir README)
+  commit_messages:
+    create: "Nouveau projet : {{slug}}"
+    update: "Modification : {{slug}}"
+    delete: "Suppression : {{slug}}"
+    uploadMedia: "Ajout photo : {{path}}"
+    deleteMedia: "Suppression photo : {{path}}"
+
+locale: fr
+site_url: https://dermience-fabrice.pages.dev
+logo_url: /favicon.svg
+
+media_libraries:
+  default:
+    config:
+      # Les photos sont réduites et converties automatiquement avant l'envoi
+      transformations:
+        raster_image:
+          format: webp
+          quality: 85
+          width: 2400
+          height: 2400
+
+collections:
+  - name: projets
+    label: Projets
+    label_singular: Projet
+    description: "Chaque projet = une page avec ses photos. Cochez « À la une » pour le mettre en premier sur l'accueil."
+    folder: src/content/projets
+    path: "{{slug}}/index"
+    media_folder: ""
+    public_folder: ""
+    create: true
+    delete: true
+    slug: "{{titre}}"
+    summary: "{{titre}} ({{categorie}})"
+    sortable_fields: [ordre, titre, categorie]
+    view_groups:
+      - { label: Catégorie, field: categorie }
+    fields:
+      - { name: titre, label: "Titre du projet", widget: string }
+      - name: categorie
+        label: Catégorie
+        widget: select
+        options: ["Mode", "Mariage", "Sport & Action", "Portraits", "Corporate", "Kids", "Pub"]
+      - { name: description, label: "Petite description (1 à 2 phrases)", widget: text, required: false }
+      - { name: couverture, label: "Photo de couverture (accueil et liste)", widget: image }
+      - { name: a_la_une, label: "À la une (en premier sur l'accueil)", widget: boolean, default: false }
+      - { name: ordre, label: "Ordre d'affichage (1 = en premier)", widget: number, value_type: int, default: 10 }
+      - name: photos
+        label: Photos du projet
+        label_singular: Photo
+        widget: list
+        summary: "{{fields.legende}}"
+        fields:
+          - { name: image, label: Photo, widget: image }
+          - { name: legende, label: "Légende (facultatif)", widget: string, required: false }
+
+  - name: reglages
+    label: Réglages du site
+    files:
+      - name: infos
+        label: "Bio et contact"
+        file: src/data/site.json
+        format: json
+        fields:
+          - { name: nom, label: Nom, widget: string }
+          - { name: metier, label: Métier, widget: string }
+          - { name: accroche, label: "Phrase d'accroche", widget: string }
+          - { name: bio, label: "Bio (page À propos)", widget: text }
+          - { name: email, label: E-mail, widget: string }
+          - { name: telephone, label: "Téléphone / WhatsApp (format +32...)", widget: string }
+          - { name: instagram, label: "Compte Instagram (sans @)", widget: string }
+          - { name: web3forms_cle, label: "Clé Web3Forms (formulaire)", widget: string, required: false }

@@ -1,0 +1,16 @@
+{
+  "name": "site-fabrice-dermience",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "build:apercu": "APERCU=1 astro build --outDir dist-apercu && node scripts/relativize.mjs dist-apercu"
+  },
+  "dependencies": {
+    "astro": "5.18.2",
+    "sharp": "^0.34.0"
+  }
+}
