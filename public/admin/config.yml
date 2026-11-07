@@ -12,6 +12,10 @@ backend:
     deleteMedia: "Suppression photo : {{path}}"
 
 locale: fr
+
+# Dossier par défaut des images (les photos de projet, elles, vont dans le dossier du projet)
+media_folder: public/images
+public_folder: /images
 site_url: https://dermience-fabrice.dermience-select.workers.dev
 logo_url: /favicon.svg
 
