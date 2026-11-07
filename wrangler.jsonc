@@ -1,0 +1,9 @@
+{
+  // Hébergement Cloudflare (Workers + fichiers statiques). Le site construit est dans dist/.
+  "name": "dermience-fabrice",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
