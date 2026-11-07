@@ -12,7 +12,7 @@ backend:
     deleteMedia: "Suppression photo : {{path}}"
 
 locale: fr
-site_url: https://dermience-fabrice.pages.dev
+site_url: https://dermience-fabrice.dermience-select.workers.dev
 logo_url: /favicon.svg
 
 media_libraries:

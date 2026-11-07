@@ -26,9 +26,9 @@ npm run build      # site final dans dist/
 ## Mise en ligne (une seule fois)
 
 1. Le code est sur GitHub : `dermienceselect-blip/Dermience-fabrice` (branche `main`).
-2. Cloudflare : Workers & Pages > Create > Pages > « Connect to Git » > choisir `Dermience-fabrice`.
-   Framework preset **Astro**, Build command `npm run build`, Build output directory `dist`. Cliquer « Save and Deploy ».
-3. Le site est en ligne sur `https://dermience-fabrice.pages.dev` (ou l'adresse que Cloudflare affiche).
+2. Cloudflare : Workers & Pages > Create > « Import a repository » > `Dermience-fabrice` (config dans `wrangler.jsonc`).
+   Build command `npm run build`, Deploy command `npx wrangler deploy`. Chaque modification sur `main` redéploie le site.
+3. Le site est en ligne sur `https://dermience-fabrice.dermience-select.workers.dev` (ou l'adresse que Cloudflare affiche).
 4. (Recommandé) Acheter `fabricedermience.be` et l'ajouter dans Cloudflare Pages > Custom domains, puis changer `site` dans `astro.config.mjs` et `site_url` dans `public/admin/config.yml`.
 5. Formulaire : créer une clé gratuite sur web3forms.com avec `fabricedermience@gmail.com`, puis la coller dans l'admin > Réglages du site > Clé Web3Forms. Sans clé, le formulaire ouvre la messagerie e-mail du visiteur.
 
@@ -43,7 +43,7 @@ Connexion par jeton d'accès GitHub (à faire une seule fois sur chaque ordinate
 
 ### Guide pour Fabrice
 
-1. Aller sur `dermience-fabrice.pages.dev/admin` (déjà connecté après la première fois).
+1. Aller sur `dermience-fabrice.dermience-select.workers.dev/admin` (déjà connecté après la première fois).
 2. **Projets > Nouveau projet** : titre, catégorie, petite description.
 3. Choisir la photo de couverture, puis ajouter les photos une par une dans « Photos du projet » (glisser-déposer possible).
 4. Cocher « À la une » pour qu'il apparaisse en premier sur l'accueil.
