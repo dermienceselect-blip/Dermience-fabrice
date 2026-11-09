@@ -13,6 +13,21 @@ const liens = [
   { href: '/contact/', label: 'Contact' },
 ];
 const whatsapp = `https://wa.me/${site.telephone.replace(/\D/g, '')}`;
+const canonique = new URL(chemin, Astro.site).toString();
+// Fiche « photographe » lisible par Google (nom, métier, contact, réseaux)
+const fiche = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfessionalService',
+  name: `${site.nom}, ${site.metier}`,
+  description: site.accroche,
+  url: new URL('/', Astro.site).toString(),
+  email: site.email,
+  telephone: site.telephone,
+  address: { '@type': 'PostalAddress', addressCountry: 'BE' },
+  areaServed: 'Belgique',
+  founder: { '@type': 'Person', name: site.nom, jobTitle: site.metier },
+  sameAs: [`https://www.instagram.com/${site.instagram}/`],
+};
 ---
 <!doctype html>
 <html lang="fr">
@@ -23,6 +38,11 @@ const whatsapp = `https://wa.me/${site.telephone.replace(/\D/g, '')}`;
     <meta name="description" content={description} />
     <meta property="og:title" content={titreComplet} />
     <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonique} />
+    <meta property="og:site_name" content={site.nom} />
+    <link rel="canonical" href={canonique} />
+    <script type="application/ld+json" set:html={JSON.stringify(fiche)} />
     <meta name="theme-color" content="#fbfaf8" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
